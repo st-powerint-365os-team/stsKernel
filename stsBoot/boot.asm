@@ -1,18 +1,39 @@
-org 07c00h
+org 07c00h;核心使用30day
 
 CYLS    equ     10
 jmp entry
-
+nop
+DB		0x90
+DB		"STKERNEL"		; ブートセクタの名前を自由に書いてよい（8バイト）
+DW		512				; 1セクタの大きさ（512にしなければいけない）
+DB		1				; クラスタの大きさ（1セクタにしなければいけない）
+DW		1				; FATがどこから始まるか（普通は1セクタ目からにする）
+DB		2				; FATの個数（2にしなければいけない）
+DW		224				; ルートディレクトリ領域の大きさ（普通は224エントリにする）
+DW		2880			; このドライブの大きさ（2880セクタにしなければいけない）
+DB		0xf0			; メディアのタイプ（0xf0にしなければいけない）
+DW		9				; FAT領域の長さ（9セクタにしなければいけない）
+DW		18				; 1トラックにいくつのセクタがあるか（18にしなければいけない）
+DW		2				; ヘッドの数（2にしなければいけない）
+DD		0				; パーティションを使ってないのでここは必ず0
+DD		2880			; このドライブ大きさをもう一度書く
+DB		0,0,0x29		; よくわからないけどこの値にしておくといいらしい
+DD		0xffffffff		; たぶんボリュームシリアル番号
+DB		"STSKERNELOS"	; ディスクの名前（11バイト）
+DB		"FAT12   "		; フォーマットの名前（8バイト）
+RESB	18	
 entry:
     mov ax, 0
     mov ss, ax
     mov sp, 0x7c00
     mov ds, ax
-
+    mov ah,0
+    mov al,41h
+    int 10h
     mov ax, Msg
     mov cx, 23
     call showText     ; 显示 "2025 stsBoot Loading..."
-    
+
     ; 初始化调试信息行号
     mov bx, 0           ; 变量用于跟踪当前行数
     mov si, 0           ; 重置失败次数
@@ -36,7 +57,7 @@ setCursorBottom:
     mov ah, 02h         ; 设置光标位置
     mov bh, 0           ; 页码 0
     mov dh, 24          ; 行号 24 (屏幕底部)
-    mov dl, 0           ; 列号 0
+    mov dl, 42          ; 列号 0
     int 0x10
     ret
 
@@ -48,35 +69,32 @@ while:
     jmp while
 
 read:
-    MOV     AX, 0            ; 初始化寄存器
-    MOV     SS, AX
-    MOV     SP, 0x7c00
-    MOV     DS, AX
+    	MOV		AX,0			; 初始化寄存器
+		MOV		SS,AX
+		MOV		SP,0x7c00
+		MOV		DS,AX
 
-    MOV     AX, 0x0820
-    MOV     ES, AX
-    MOV     CH, 0            ; 柱面0
-    MOV     DH, 0            ; 磁头0
-    MOV     CL, 2            ; 扇区2
+; 读取磁盘
+
+		MOV		AX,0x0820
+		MOV		ES,AX
+		MOV		CH,0			; 柱面0
+		MOV		DH,0			; 磁头0
+		MOV		CL,2			; 扇区2
 
 readloop:
-    CALL    checkKeyPress      ; 检查按键输入
-    CMP     AL, 0x20         ; 检查是否按下了空格键
-    JNE     .continue_reading
-
-    CALL    clear            ; 清屏
-    call    resetCursor      ; 重置光标位置
-    INC     cx               ; 增加页码
-    JMP     readloop
-
-.continue_reading:
     MOV     SI, 0            ; 记录失败次数寄存器
 
 retry:
     ; 调试信息：显示当前读取的柱面号、磁头号和扇区号（十六进制形式）
     MOV     AX, 0x0E20       ; 设置为写字符到光标位置（TELETYPE模式）
 
+    mov     al, '['
+    int     0x10
+    mov     al, ' '
     ; 显示 CH (柱面号)
+    mov     al, ' '
+    int     0x10
     mov     al, 'C'
     int     0x10
     mov     al, 'H'
@@ -110,75 +128,94 @@ retry:
     MOV     AL, CL           ; 显示扇区号
     CALL    printHexByte     ; 打印十六进制字节
 
-    ; 换行显示
-    mov     al, 0x0A
+    ; 调试信息：显示读取状态
+    mov     al, ' '
     int     0x10
-    mov     al, 0x0D
+    mov     al, ']'
     int     0x10
 
-    MOV     AH, 0x02         ; AH=0x02 : 读入磁盘
-    MOV     AL, 1            ; 1个扇区
-    MOV     BX, 0
-    MOV     DL, 0x00         ; A驱动器
-    INT     0x13             ; 调用磁盘BIOS
+    	MOV		AH,0x02			; AH=0x02 : 读入磁盘
+		MOV		AL,1			; 1个扇区
+		MOV		BX,0
+		MOV		DL,0x00			; A驱动器
+		INT		0x13			; 调用磁盘BIOS
+		JNC		next			; 没出错则跳转到fin
+		ADD		SI,1			; 往SI加1
+		CMP		SI,5			; 比较SI与5
+		JAE		error			; SI >= 5 跳转到error
+		MOV		AH,0x00
+		MOV		DL,0x00			; A驱动器
+		INT		0x13			; 重置驱动器
+		JMP		retry
 
-    JNC     next             ; 没出错则跳转到next
-    ADD     SI, 1            ; 往SI加1
-    CMP     SI, 5            ; 比较SI与5
-    JAE     error            ; SI >= 5 跳转到error
-    MOV     AH, 0x00
-    MOV     DL, 0x00         ; A驱动器
-    INT     0x13             ; 重置驱动器
-    JMP     retry
+
+.success:
+    mov     al, 'O'
+    int     0x10
+    mov     al, 'K'
+    int     0x10
+
+    ; 不换行显示下一个读取信息
+    jmp     next
+
+success:
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
+    ; mov ax, successMsg
+    ; mov cx, 27
+    ; call showText     ; 显示加载成功消息
+    MOV		[0x0ff0],CH	
+    JMP		0xc200
+; successMsg:
+;     db "stsBoot loaded successfully", 0
+clear:
+    mov ax, 0600h
+    mov bx, 0700h
+    mov cx, 0
+    mov dx, 184fh
+    int 10h
+    ret
 next:
-    MOV     AX, ES           ; 把内存地址后移0x200（512字节）
-    ADD     AX, 0x0020
-    MOV     ES, AX
-    ADD     CL, 1            ; 往CL里面加1
-    CMP     CL, 18           ; 比较CL与18
-    JBE     readloop         ; CL <= 18 跳转到readloop
-    MOV     CL, 1
-    ADD     DH, 1
-    CMP     DH, 2
-    JB      readloop         ; DH < 2 跳转到readloop
-    MOV     DH, 0
-    ADD     CH, 1
-    CMP     CH, CYLS
-    JB      readloop         ; CH < CYLS 跳转到readloop
+        MOV		AX,ES			; 把内存地址后移0x200（512/16十六进制转换）
+		ADD		AX,0x0020
+		MOV		ES,AX			; ADD ES,0x020因为没有ADD ES，只能通过AX进行
+		ADD		CL,1			; 往CL里面加1
+		CMP		CL,18			; 比较CL与18
+		JBE		readloop		; CL <= 18 跳转到readloop
+		MOV		CL,1
+		ADD		DH,1
+		CMP		DH,2
+		JB		readloop		; DH < 2 跳转到readloop
+		MOV		DH,0
+		ADD		CH,1
+		CMP		CH,CYLS
+		JB		readloop		; CH < CYLS 跳转到readloop
+
 
     ; 磁盘读取成功，跳转到加载代码
-    ; JMP     0xc200
+    call success
 
 error:
-    ; 清屏并重置光标位置
-    CALL    clear
-    CALL    resetCursor
+    ; 设置光标到屏幕底部
+    CALL    setCursorBottom
 
     ; 显示错误消息
-    mov ax,cs
-    mov ds,ax
-mov es,ax
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
     mov ax, errorMsg
-    mov cx, 33
-    call showTextCustom       ; 显示错误消息
+    mov cx, 33               ; 调整 cx 以匹配字符串长度
+    call showText            ; 显示错误消息
 
-    ; 显示错误码（十六进制形式）
-    MOV     AX, 0x0E20       ; 设置为写字符到光标位置（TELETYPE模式）
-    MOV     AL, AH           ; 显示错误码
+    ; 显示错误码（十六进制形式，黄色显示）
+    MOV     AL, AH           ; 获取错误码
     CALL    printHexByte     ; 打印十六进制字节
 
     jmp while
 
 errorMsg:
     db "Error loading stsBoot Error code: ", 0
-
-clear:
-    mov ax, 0600h         ; 清屏
-    mov bx, 0700h         ; 背景颜色
-    mov cx, 0             ; 从行 0 开始
-    mov dx, 184fh         ; 到达行 24 结束
-    int 10h
-    ret
 
 printHexByte:
     ; 打印十六进制字节
@@ -196,28 +233,13 @@ printHexNibble:
     CMP     AL, 0x09         ; 比较AL与9
     JBE     .low_digit       ; 如果AL <= 9, 跳转到.low_digit
     ADD     AL, 7            ; 如果AL > 9, 调整为字母A-F
+
 .low_digit:
     ADD     AL, 0x30         ; 转换为ASCII字符
+    MOV     BX, 0x0E        ; 颜色属性 0E (黄色文本，黑色背景)
     INT     0x10
     RET
-showTextCustom:
-    mov bp, ax  ; 将字符串地址传给 bp
-    mov ax, 01301h  ; 设置为写字符到光标位置
-    mov bx, 15  ; 页码 0, 颜色属性 15 (白色文本，黑色背景)
-    int 0x10
-    ret
-checkKeyPress:
-    ; 检查是否有按键输入
-    mov ah, 01h              ; 检查按键缓冲区
-    int 0x16                 ; 调用键盘BIOS
-    jz .no_key               ; 如果没有按键，跳转到.no_key
 
-    mov ah, 00h              ; 读取按键输入
-    int 0x16                 ; 调用键盘BIOS
-    ret
-.no_key:
-    xor ax, ax
-    ret
 end:
     times 510 - ($ - $$) db 0
     dw 0xaa55              ; 引导签名
