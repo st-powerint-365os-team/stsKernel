@@ -1,4 +1,4 @@
-org 07c00h;核心使用30day
+org 07c00h;核心使用30day floppy bootloader
 
 CYLS    equ     10
 jmp entry

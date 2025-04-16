@@ -1,13 +1,16 @@
-nasm = nasm-2.16rc12/nasm.exe
+nasm = compile_tools/nasm-2.16rc12/nasm.exe
 disk = F:/
 qemu = qemu/qemu.exe
 file = ../stsKenrel.img
-stsKenrel.img: bin/boot.bin bin/test.bin
+ld = compile_tools/ld.exe
+stsKenrel.img: bin/boot.bin bin/stsLoad.bin
 	dd if=bin/boot.bin of=stsKenrel.img bs=512 count=1
-	dd if=bin/test.bin of=stsKenrel.img bs=512 seek=1 conv=notrunc
+	dd if=bin/stsLoad.bin of=stsKenrel.img bs=512 seek=1 conv=notrunc
 bin/boot.bin: stsBoot/boot.asm
 	$(nasm) stsBoot/boot.asm -o bin/boot.bin
 bin/test.bin: test.asm
 	$(nasm) test.asm -o bin/test.bin
 del:
 	cmd /c del stsKenrel.img
+bin/stsLoad.bin: stsBoot/stsLoad.asm lib/stConsole.asm makeBat/stsLoad_bin.bat
+	cmd /c makeBat\stsLoad_bin.bat
