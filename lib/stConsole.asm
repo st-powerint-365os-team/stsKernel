@@ -30,6 +30,8 @@ stLogConsole:
     int 0x10
     ; 显示 [ INFO ]，绿色文本，黑色背景
     mov ax,0e20h
+    mov     al, ' '
+    int     0x10
     mov     al, '['
     int     0x10
     mov     al, ' '
@@ -53,7 +55,7 @@ stLogConsole:
     mov al, 1    ; 写模式1，移动光标
     mov bh, 0    ; 页码 0
     mov bl, 02h  ; 设置颜色属性为绿色文本，黑色背景
-    mov dl, 9    ; 列号 9
+    mov dl, 10    ; 列号 9
     int 0x10
     ret
 .error:   ;ax字符串地址 cx字符串长度 dh行
@@ -64,11 +66,6 @@ stLogConsole:
     mov bh, 0    ; 页码 0
     mov dl, 0    ; 列号 0
     int 0x10
-
-    ; 调试输出：显示一个字符
-    mov ah, 0eh
-    mov al, 'S'
-    int 10h
 
     ; 显示 [ ERROR ]，红色文本，黑色背景
     mov ax,0e20h
@@ -98,7 +95,7 @@ stLogConsole:
     mov al, 1    ; 写模式1，移动光标
     mov bh, 0    ; 页码 0
     mov bl, 04h  ; 设置颜色属性为红色文本，黑色背景
-    mov dl, 10    ; 列号 12（确保不会与 [ ERROR ] 重叠）
+    mov dl, 10    ; 列号 10（确保不会与 [ ERROR ] 重叠）
     int 0x10
 
     ret
@@ -106,5 +103,3 @@ stLogConsole:
 init:
     mov ax, cs
     mov es, ax
-info_TEXT:
-    db '[ INFO ] ', 0

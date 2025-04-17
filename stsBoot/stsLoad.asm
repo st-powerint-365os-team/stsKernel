@@ -20,19 +20,17 @@ _start:
     mov cx, 18
     call stLogConsole.info
 
-    call init
-    ; 增加行号
     add dh, 1
-
-    ; 第二次调用 .error
-    mov ax, stsLoadMessage
-    mov cx, 18
-    call stLogConsole.error
-
+    mov ax, stsProtectModeLoadingMsg
+    mov cx, 20
+    call stLogConsole.info
     call while
 while:
     hlt
-    jmp $
+    jmp while
 stsLoadMessage:
     db "stsLoad Booting...", 0
+stsProtectModeLoadingMsg:
+    db "Loading protect Mode", 0
+stsProtectedModeMsg:
 ; consoleLib

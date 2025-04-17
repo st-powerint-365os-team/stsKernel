@@ -3,24 +3,26 @@ org 07c00h;核心使用30day floppy bootloader
 CYLS    equ     10
 jmp entry
 nop
-DB		0x90
-DB		"STKERNEL"		; ブートセクタの名前を自由に書いてよい（8バイト）
-DW		512				; 1セクタの大きさ（512にしなければいけない）
-DB		1				; クラスタの大きさ（1セクタにしなければいけない）
-DW		1				; FATがどこから始まるか（普通は1セクタ目からにする）
-DB		2				; FATの個数（2にしなければいけない）
-DW		224				; ルートディレクトリ領域の大きさ（普通は224エントリにする）
-DW		2880			; このドライブの大きさ（2880セクタにしなければいけない）
-DB		0xf0			; メディアのタイプ（0xf0にしなければいけない）
-DW		9				; FAT領域の長さ（9セクタにしなければいけない）
-DW		18				; 1トラックにいくつのセクタがあるか（18にしなければいけない）
-DW		2				; ヘッドの数（2にしなければいけない）
-DD		0				; パーティションを使ってないのでここは必ず0
-DD		2880			; このドライブ大きさをもう一度書く
-DB		0,0,0x29		; よくわからないけどこの値にしておくといいらしい
-DD		0xffffffff		; たぶんボリュームシリアル番号
-DB		"STSKERNELOS"	; ディスクの名前（11バイト）
-DB		"FAT12   "		; フォーマットの名前（8バイト）
+; 下面是 FAT12 磁盘的头
+	BS_OEMName	DB 'STKENREL'	; OEM String, 必须 8 个字节
+	BPB_BytsPerSec	DW 512		; 每扇区字节数
+	BPB_SecPerClus	DB 1		; 每簇多少扇区
+	BPB_RsvdSecCnt	DW 1		; Boot 记录占用多少扇区
+	BPB_NumFATs	DB 2		; 共有多少 FAT 表
+	BPB_RootEntCnt	DW 224		; 根目录文件数最大值
+	BPB_TotSec16	DW 2880		; 逻辑扇区总数
+	BPB_Media	DB 0xF0		; 媒体描述符
+	BPB_FATSz16	DW 9		; 每FAT扇区数
+	BPB_SecPerTrk	DW 18		; 每磁道扇区数
+	BPB_NumHeads	DW 2		; 磁头数(面数)
+	BPB_HiddSec	DD 0		; 隐藏扇区数
+	BPB_TotSec32	DD 0		; wTotalSectorCount为0时这个值记录扇区数
+	BS_DrvNum	DB 0		; 中断 13 的驱动器号
+	BS_Reserved1	DB 0		; 未使用
+	BS_BootSig	DB 29h		; 扩展引导标记 (29h)
+	BS_VolID	DD 0		; 卷序列号
+	BS_VolLab	DB 'STSKENREL01'; 卷标, 必须 11 个字节
+	BS_FileSysType	DB 'FAT12   '	; 文件系统类型, 必须 8个字节  
 RESB	18	
 entry:
     mov ax, 0
