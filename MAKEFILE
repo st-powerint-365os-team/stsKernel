@@ -12,5 +12,5 @@ bin/test.bin: test.asm
 	$(nasm) test.asm -o bin/test.bin
 del:
 	cmd /c del stsKenrel.img
-bin/stsLoad.bin: stsBoot/stsLoad.asm lib/stConsole.asm makeBat/stsLoad_bin.bat
+bin/stsLoad.bin: stsBoot/stsLoad.asm lib/s16stConsole.asm stsBoot/stsx86Load.asm makeBat/stsLoad_bin.bat
 	cmd /c makeBat\stsLoad_bin.bat

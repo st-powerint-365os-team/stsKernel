@@ -1,3 +1,5 @@
+
+;实模式 x16专属
 stConsole:
     ret
 .clear:  ;void
@@ -103,3 +105,4 @@ stLogConsole:
 init:
     mov ax, cs
     mov es, ax
+    ret
